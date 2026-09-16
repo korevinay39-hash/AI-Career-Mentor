@@ -1,0 +1,49 @@
+{
+    "Python": [
+        "Python fundamentals",
+        "Functions and modules",
+        "Object Oriented Programming",
+        "File handling",
+        "Exception handling",
+        "Problem solving"
+    ],
+    "AI": [
+        "Python for AI",
+        "NumPy",
+        "Pandas",
+        "Machine Learning",
+        "Deep Learning",
+        "Generative AI",
+        "LangChain",
+        "RAG",
+        "AI Agents"
+    ],
+    "Web Development": [
+        "HTML",
+        "CSS",
+        "JavaScript",
+        "React",
+        "Node.js",
+        "Express.js",
+        "MongoDB",
+        "REST APIs"
+    ],
+    "Java": [
+        "Java fundamentals",
+        "OOP",
+        "Collections",
+        "Exception handling",
+        "JDBC",
+        "Spring Boot",
+        "REST APIs"
+    ],
+    "Cloud": [
+        "Cloud fundamentals",
+        "AWS basics",
+        "EC2",
+        "S3",
+        "IAM",
+        "Docker",
+        "Deployment"
+    ]
+}
