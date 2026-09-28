@@ -1,4 +1,4 @@
-from agent.career_agent import CareerAgent
+from career_agent import CareerMentorAgent
 
 
 def main():
