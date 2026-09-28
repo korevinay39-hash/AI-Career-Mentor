@@ -17,10 +17,9 @@ import {
   Check,
   RefreshCw,
   AlertCircle,
-  GraduationCap,
   Target,
-  Wrench,
-  UserCheck
+  UserCheck,
+  Square
 } from 'lucide-react';
 import './App.css';
 
@@ -87,6 +86,23 @@ export default function App() {
 
   // Copy feedback state
   const [copiedSection, setCopiedSection] = useState(null);
+
+  // AbortController ref to allow stopping streaming requests like ChatGPT
+  const abortControllerRef = useRef(null);
+
+  // Stop Generation Handler (ChatGPT style)
+  const handleStopGeneration = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+    setIsChatStreaming(false);
+    setIsAnalyzing(false);
+    setIsGeneratingRoadmap(false);
+    setIsGeneratingNextTask(false);
+    setIsGeneratingInterview(false);
+    setIsGeneratingProjects(false);
+  };
 
   // Load initial data from backend API
   useEffect(() => {
@@ -174,12 +190,18 @@ export default function App() {
 
   const isProfileComplete = profile.name && profile.education && profile.skills && profile.goal;
 
-  // Generic Stream Reader
+  // Generic Stream Reader with AbortController support
   const executeStreamRequest = async (url, payload, setStreamText, setLoadingState) => {
     if (!isProfileComplete) {
       alert('Please fill out and save your Student Profile first!');
       return;
     }
+
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
 
     setLoadingState(true);
     setStreamText('');
@@ -188,7 +210,8 @@ export default function App() {
       const res = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+        body: JSON.stringify(payload),
+        signal: controller.signal
       });
 
       if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
@@ -205,29 +228,44 @@ export default function App() {
         setStreamText(textBuffer);
       }
     } catch (err) {
+      if (err.name === 'AbortError') {
+        // Stopped cleanly by user
+        return;
+      }
       setStreamText(`⚠️ Error: ${err.message}. Please check if the backend API and Ollama are running.`);
     } finally {
       setLoadingState(false);
+      abortControllerRef.current = null;
     }
   };
 
-  // Chat Submission
+  // Chat Submission with AbortController support
   const handleSendChat = async (e) => {
     if (e) e.preventDefault();
+    if (isChatStreaming) {
+      handleStopGeneration();
+      return;
+    }
+
     const query = chatInput.trim();
-    if (!query || isChatStreaming) return;
+    if (!query) return;
 
     if (!isProfileComplete) {
       alert('Please fill out and save your Student Profile first!');
       return;
     }
 
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
     const newMessages = [...chatMessages, { role: 'user', content: query }];
     setChatMessages(newMessages);
     setChatInput('');
     setIsChatStreaming(true);
 
-    // Placeholder message for streaming response
     const assistantIndex = newMessages.length;
     setChatMessages([...newMessages, { role: 'assistant', content: '' }]);
 
@@ -241,7 +279,8 @@ export default function App() {
           skills: profile.skills,
           goal: profile.goal,
           question: query
-        })
+        }),
+        signal: controller.signal
       });
 
       if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
@@ -261,6 +300,10 @@ export default function App() {
         });
       }
     } catch (err) {
+      if (err.name === 'AbortError') {
+        // Stopped cleanly by user, keep accumulated text
+        return;
+      }
       setChatMessages((prev) => {
         const updated = [...prev];
         updated[assistantIndex] = {
@@ -271,6 +314,7 @@ export default function App() {
       });
     } finally {
       setIsChatStreaming(false);
+      abortControllerRef.current = null;
     }
   };
 
@@ -335,7 +379,7 @@ export default function App() {
               <label>Full Name</label>
               <input
                 type="text"
-                placeholder="e.g. Vinay Kore"
+                placeholder="Name"
                 value={profile.name}
                 onChange={(e) => setProfile({ ...profile, name: e.target.value })}
               />
@@ -502,6 +546,15 @@ export default function App() {
                 <div ref={chatBottomRef} />
               </div>
 
+              {/* Stop Generation Button for Chat (ChatGPT style) */}
+              {isChatStreaming && (
+                <div className="chat-stop-bar">
+                  <button type="button" className="btn-stop" onClick={handleStopGeneration}>
+                    <Square size={14} fill="currentColor" /> Stop Generating
+                  </button>
+                </div>
+              )}
+
               {/* Quick Prompts */}
               <div className="quick-prompts">
                 <button
@@ -544,15 +597,26 @@ export default function App() {
                   }
                   value={chatInput}
                   onChange={(e) => setChatInput(e.target.value)}
-                  disabled={!isProfileComplete || isChatStreaming}
+                  disabled={!isProfileComplete}
                 />
-                <button
-                  type="submit"
-                  className="btn-primary"
-                  disabled={!isProfileComplete || isChatStreaming || !chatInput.trim()}
-                >
-                  {isChatStreaming ? <RefreshCw size={16} className="animate-spin" /> : <Send size={16} />}
-                </button>
+                {isChatStreaming ? (
+                  <button
+                    type="button"
+                    className="btn-stop"
+                    onClick={handleStopGeneration}
+                    title="Stop Generating"
+                  >
+                    <Square size={14} fill="currentColor" /> Stop
+                  </button>
+                ) : (
+                  <button
+                    type="submit"
+                    className="btn-primary"
+                    disabled={!isProfileComplete || !chatInput.trim()}
+                  >
+                    <Send size={16} />
+                  </button>
+                )}
               </form>
             </div>
           </div>
@@ -574,33 +638,31 @@ export default function App() {
                     Current Skills: {profile.skills || "None provided"}
                   </div>
                 </div>
-                <button
-                  className="btn-primary"
-                  disabled={isAnalyzing}
-                  onClick={() =>
-                    executeStreamRequest(
-                      '/api/ai/skill-analysis',
-                      {
-                        name: profile.name,
-                        education: profile.education,
-                        skills: profile.skills,
-                        goal: profile.goal
-                      },
-                      setSkillAnalysis,
-                      setIsAnalyzing
-                    )
-                  }
-                >
-                  {isAnalyzing ? (
-                    <>
-                      <RefreshCw size={16} className="animate-spin" /> Analyzing...
-                    </>
-                  ) : (
-                    <>
-                      <Sparkles size={16} /> Analyze My Skills
-                    </>
-                  )}
-                </button>
+
+                {isAnalyzing ? (
+                  <button className="btn-stop" onClick={handleStopGeneration}>
+                    <Square size={14} fill="currentColor" /> Stop Generating
+                  </button>
+                ) : (
+                  <button
+                    className="btn-primary"
+                    onClick={() =>
+                      executeStreamRequest(
+                        '/api/ai/skill-analysis',
+                        {
+                          name: profile.name,
+                          education: profile.education,
+                          skills: profile.skills,
+                          goal: profile.goal
+                        },
+                        setSkillAnalysis,
+                        setIsAnalyzing
+                      )
+                    }
+                  >
+                    <Sparkles size={16} /> Analyze My Skills
+                  </button>
+                )}
               </div>
 
               {skillAnalysis && (
@@ -641,33 +703,31 @@ export default function App() {
                     Tailored for: {profile.name || "Student"}
                   </div>
                 </div>
-                <button
-                  className="btn-primary"
-                  disabled={isGeneratingRoadmap}
-                  onClick={() =>
-                    executeStreamRequest(
-                      '/api/ai/roadmap',
-                      {
-                        name: profile.name,
-                        education: profile.education,
-                        skills: profile.skills,
-                        goal: profile.goal
-                      },
-                      setRoadmap,
-                      setIsGeneratingRoadmap
-                    )
-                  }
-                >
-                  {isGeneratingRoadmap ? (
-                    <>
-                      <RefreshCw size={16} className="animate-spin" /> Generating...
-                    </>
-                  ) : (
-                    <>
-                      <Map size={16} /> Generate Roadmap
-                    </>
-                  )}
-                </button>
+
+                {isGeneratingRoadmap ? (
+                  <button className="btn-stop" onClick={handleStopGeneration}>
+                    <Square size={14} fill="currentColor" /> Stop Generating
+                  </button>
+                ) : (
+                  <button
+                    className="btn-primary"
+                    onClick={() =>
+                      executeStreamRequest(
+                        '/api/ai/roadmap',
+                        {
+                          name: profile.name,
+                          education: profile.education,
+                          skills: profile.skills,
+                          goal: profile.goal
+                        },
+                        setRoadmap,
+                        setIsGeneratingRoadmap
+                      )
+                    }
+                  >
+                    <Map size={16} /> Generate Roadmap
+                  </button>
+                )}
               </div>
 
               {roadmap && (
@@ -806,34 +866,32 @@ export default function App() {
                       Our agent analyzes your completed topics and recommends the exact next task to work on.
                     </div>
                   </div>
-                  <button
-                    className="btn-primary"
-                    disabled={isGeneratingNextTask}
-                    onClick={() =>
-                      executeStreamRequest(
-                        '/api/ai/next-task',
-                        {
-                          name: profile.name,
-                          education: profile.education,
-                          skills: profile.skills,
-                          goal: profile.goal,
-                          completed_topics: completedTopics
-                        },
-                        setNextTaskResult,
-                        setIsGeneratingNextTask
-                      )
-                    }
-                  >
-                    {isGeneratingNextTask ? (
-                      <>
-                        <RefreshCw size={16} className="animate-spin" /> Thinking...
-                      </>
-                    ) : (
-                      <>
-                        <Target size={16} /> Suggest My Next Task
-                      </>
-                    )}
-                  </button>
+
+                  {isGeneratingNextTask ? (
+                    <button className="btn-stop" onClick={handleStopGeneration}>
+                      <Square size={14} fill="currentColor" /> Stop Generating
+                    </button>
+                  ) : (
+                    <button
+                      className="btn-primary"
+                      onClick={() =>
+                        executeStreamRequest(
+                          '/api/ai/next-task',
+                          {
+                            name: profile.name,
+                            education: profile.education,
+                            skills: profile.skills,
+                            goal: profile.goal,
+                            completed_topics: completedTopics
+                          },
+                          setNextTaskResult,
+                          setIsGeneratingNextTask
+                        )
+                      }
+                    >
+                      <Target size={16} /> Suggest My Next Task
+                    </button>
+                  )}
                 </div>
 
                 {nextTaskResult && (
@@ -875,32 +933,30 @@ export default function App() {
                     Based on your skills: {profile.skills || "Not provided"}
                   </div>
                 </div>
-                <button
-                  className="btn-primary"
-                  disabled={isGeneratingInterview}
-                  onClick={() =>
-                    executeStreamRequest(
-                      '/api/ai/interview',
-                      {
-                        name: profile.name,
-                        skills: profile.skills,
-                        goal: profile.goal
-                      },
-                      setInterviewQuestions,
-                      setIsGeneratingInterview
-                    )
-                  }
-                >
-                  {isGeneratingInterview ? (
-                    <>
-                      <RefreshCw size={16} className="animate-spin" /> Generating...
-                    </>
-                  ) : (
-                    <>
-                      <Mic size={16} /> Generate Interview Questions
-                    </>
-                  )}
-                </button>
+
+                {isGeneratingInterview ? (
+                  <button className="btn-stop" onClick={handleStopGeneration}>
+                    <Square size={14} fill="currentColor" /> Stop Generating
+                  </button>
+                ) : (
+                  <button
+                    className="btn-primary"
+                    onClick={() =>
+                      executeStreamRequest(
+                        '/api/ai/interview',
+                        {
+                          name: profile.name,
+                          skills: profile.skills,
+                          goal: profile.goal
+                        },
+                        setInterviewQuestions,
+                        setIsGeneratingInterview
+                      )
+                    }
+                  >
+                    <Mic size={16} /> Generate Interview Questions
+                  </button>
+                )}
               </div>
 
               {interviewQuestions && (
@@ -941,33 +997,31 @@ export default function App() {
                     Using technologies: {profile.skills || "Not specified"}
                   </div>
                 </div>
-                <button
-                  className="btn-primary"
-                  disabled={isGeneratingProjects}
-                  onClick={() =>
-                    executeStreamRequest(
-                      '/api/ai/projects',
-                      {
-                        name: profile.name,
-                        education: profile.education,
-                        skills: profile.skills,
-                        goal: profile.goal
-                      },
-                      setProjectsResult,
-                      setIsGeneratingProjects
-                    )
-                  }
-                >
-                  {isGeneratingProjects ? (
-                    <>
-                      <RefreshCw size={16} className="animate-spin" /> Suggesting...
-                    </>
-                  ) : (
-                    <>
-                      <Lightbulb size={16} /> Suggest Projects
-                    </>
-                  )}
-                </button>
+
+                {isGeneratingProjects ? (
+                  <button className="btn-stop" onClick={handleStopGeneration}>
+                    <Square size={14} fill="currentColor" /> Stop Generating
+                  </button>
+                ) : (
+                  <button
+                    className="btn-primary"
+                    onClick={() =>
+                      executeStreamRequest(
+                        '/api/ai/projects',
+                        {
+                          name: profile.name,
+                          education: profile.education,
+                          skills: profile.skills,
+                          goal: profile.goal
+                        },
+                        setProjectsResult,
+                        setIsGeneratingProjects
+                      )
+                    }
+                  >
+                    <Lightbulb size={16} /> Suggest Projects
+                  </button>
+                )}
               </div>
 
               {projectsResult && (
