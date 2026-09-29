@@ -5,7 +5,6 @@ import {
   BarChart2,
   Map,
   BookOpen,
-  TrendingUp,
   Mic,
   Lightbulb,
   Save,
@@ -17,26 +16,10 @@ import {
   Check,
   RefreshCw,
   AlertCircle,
-  Target,
   UserCheck,
   Square
 } from 'lucide-react';
 import './App.css';
-
-const CORE_PROGRESS_TOPICS = [
-  "Python",
-  "OOP",
-  "SQL",
-  "REST API",
-  "Git & GitHub",
-  "React",
-  "Machine Learning",
-  "Generative AI",
-  "LangChain",
-  "RAG",
-  "AI Agents",
-  "Cloud"
-];
 
 export default function App() {
   // Navigation
@@ -71,16 +54,11 @@ export default function App() {
   const [activeResourceCategory, setActiveResourceCategory] = useState('');
   const [checkedResources, setCheckedResources] = useState({});
 
-  // Tab 5: Progress State
-  const [completedTopics, setCompletedTopics] = useState([]);
-  const [nextTaskResult, setNextTaskResult] = useState('');
-  const [isGeneratingNextTask, setIsGeneratingNextTask] = useState(false);
-
-  // Tab 6: Interview State
+  // Tab 5: Interview State
   const [interviewQuestions, setInterviewQuestions] = useState('');
   const [isGeneratingInterview, setIsGeneratingInterview] = useState(false);
 
-  // Tab 7: Projects State
+  // Tab 6: Projects State
   const [projectsResult, setProjectsResult] = useState('');
   const [isGeneratingProjects, setIsGeneratingProjects] = useState(false);
 
@@ -99,7 +77,6 @@ export default function App() {
     setIsChatStreaming(false);
     setIsAnalyzing(false);
     setIsGeneratingRoadmap(false);
-    setIsGeneratingNextTask(false);
     setIsGeneratingInterview(false);
     setIsGeneratingProjects(false);
   };
@@ -107,7 +84,6 @@ export default function App() {
   // Load initial data from backend API
   useEffect(() => {
     fetchProfile();
-    fetchProgress();
     fetchResources();
   }, []);
 
@@ -131,18 +107,6 @@ export default function App() {
     } catch (err) {
       console.error('Error fetching profile:', err);
       setApiConnected(false);
-    }
-  };
-
-  const fetchProgress = async () => {
-    try {
-      const res = await fetch('/api/progress');
-      if (res.ok) {
-        const data = await res.json();
-        setCompletedTopics(data.completed || []);
-      }
-    } catch (err) {
-      console.error('Error fetching progress:', err);
     }
   };
 
@@ -318,36 +282,11 @@ export default function App() {
     }
   };
 
-  // Toggle Topic Progress
-  const handleToggleTopic = async (topic) => {
-    const isCompleted = completedTopics.includes(topic);
-    if (!isCompleted) {
-      try {
-        const res = await fetch('/api/progress', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ topic })
-        });
-        if (res.ok) {
-          const data = await res.json();
-          setCompletedTopics(data.completed || []);
-        }
-      } catch (err) {
-        console.error('Error adding progress:', err);
-      }
-    }
-  };
-
   const handleCopy = (text, sectionKey) => {
     navigator.clipboard.writeText(text);
     setCopiedSection(sectionKey);
     setTimeout(() => setCopiedSection(null), 2000);
   };
-
-  // Progress metrics
-  const totalTopics = CORE_PROGRESS_TOPICS.length;
-  const completedCount = CORE_PROGRESS_TOPICS.filter((t) => completedTopics.includes(t)).length;
-  const progressPercent = Math.round((completedCount / totalTopics) * 100);
 
   return (
     <div className="app-container">
@@ -484,12 +423,6 @@ export default function App() {
               onClick={() => setActiveTab('resources')}
             >
               <BookOpen size={16} /> Resources
-            </button>
-            <button
-              className={`nav-tab-btn ${activeTab === 'progress' ? 'active' : ''}`}
-              onClick={() => setActiveTab('progress')}
-            >
-              <TrendingUp size={16} /> Progress
             </button>
             <button
               className={`nav-tab-btn ${activeTab === 'interview' ? 'active' : ''}`}
@@ -779,13 +712,13 @@ export default function App() {
                   <h3 style={{ marginBottom: 16, color: '#a5b4fc' }}>
                     Recommended Topics for {activeResourceCategory}
                   </h3>
-                  <div className="progress-grid">
+                  <div className="resource-topic-grid">
                     {resourcesData[activeResourceCategory].map((topic, idx) => {
                       const isChecked = checkedResources[`${activeResourceCategory}_${topic}`] || false;
                       return (
                         <div
                           key={idx}
-                          className={`progress-item ${isChecked ? 'completed' : ''}`}
+                          className={`resource-topic-item ${isChecked ? 'completed' : ''}`}
                           onClick={() =>
                             setCheckedResources({
                               ...checkedResources,
@@ -811,113 +744,7 @@ export default function App() {
           </div>
         )}
 
-        {/* Tab 5: Progress & Next Task */}
-        {activeTab === 'progress' && (
-          <div className="view-container">
-            <div className="view-header">
-              <h2><TrendingUp size={26} color="#6366f1" /> Learning Progress Tracker</h2>
-              <p>Track foundational and advanced topics. Mark completed items to unlock targeted task suggestions.</p>
-            </div>
-
-            <div className="content-card">
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
-                <div>
-                  <h3 style={{ fontSize: '1.25rem' }}>Core Curriculum Completion</h3>
-                  <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
-                    {completedCount} of {totalTopics} topics finished
-                  </p>
-                </div>
-                <div style={{ fontSize: '1.75rem', fontWeight: 800, color: '#10b981' }}>
-                  {progressPercent}%
-                </div>
-              </div>
-
-              <div className="progress-bar-container">
-                <div className="progress-bar-fill" style={{ width: `${progressPercent}%` }} />
-              </div>
-
-              <div className="progress-grid">
-                {CORE_PROGRESS_TOPICS.map((topic) => {
-                  const isDone = completedTopics.includes(topic);
-                  return (
-                    <div
-                      key={topic}
-                      className={`progress-item ${isDone ? 'completed' : ''}`}
-                      onClick={() => handleToggleTopic(topic)}
-                    >
-                      {isDone ? (
-                        <CheckCircle2 size={18} color="#10b981" />
-                      ) : (
-                        <Circle size={18} color="var(--text-muted)" />
-                      )}
-                      <span style={{ fontSize: '0.9rem', color: isDone ? '#34d399' : 'var(--text-primary)' }}>
-                        {topic}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-
-              <div style={{ marginTop: 24, paddingTop: 20, borderTop: '1px solid var(--border-subtle)' }}>
-                <div className="action-banner" style={{ marginBottom: 0 }}>
-                  <div>
-                    <strong>Ready for the next step?</strong>
-                    <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                      Our agent analyzes your completed topics and recommends the exact next task to work on.
-                    </div>
-                  </div>
-
-                  {isGeneratingNextTask ? (
-                    <button className="btn-stop" onClick={handleStopGeneration}>
-                      <Square size={14} fill="currentColor" /> Stop Generating
-                    </button>
-                  ) : (
-                    <button
-                      className="btn-primary"
-                      onClick={() =>
-                        executeStreamRequest(
-                          '/api/ai/next-task',
-                          {
-                            name: profile.name,
-                            education: profile.education,
-                            skills: profile.skills,
-                            goal: profile.goal,
-                            completed_topics: completedTopics
-                          },
-                          setNextTaskResult,
-                          setIsGeneratingNextTask
-                        )
-                      }
-                    >
-                      <Target size={16} /> Suggest My Next Task
-                    </button>
-                  )}
-                </div>
-
-                {nextTaskResult && (
-                  <div className="response-box" style={{ marginTop: 20 }}>
-                    <div className="response-header">
-                      <span className="section-label">Next Action Plan</span>
-                      <button
-                        className="btn-secondary"
-                        onClick={() => handleCopy(nextTaskResult, 'next_task')}
-                      >
-                        {copiedSection === 'next_task' ? <Check size={14} color="#10b981" /> : <Copy size={14} />}
-                        {copiedSection === 'next_task' ? 'Copied' : 'Copy'}
-                      </button>
-                    </div>
-                    <div className="markdown-body">
-                      <ReactMarkdown>{nextTaskResult}</ReactMarkdown>
-                      {isGeneratingNextTask && <span className="typing-cursor" />}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Tab 6: Interview Prep */}
+        {/* Tab 5: Interview Prep */}
         {activeTab === 'interview' && (
           <div className="view-container">
             <div className="view-header">
@@ -981,7 +808,7 @@ export default function App() {
           </div>
         )}
 
-        {/* Tab 7: Project Suggestions */}
+        {/* Tab 6: Project Suggestions */}
         {activeTab === 'projects' && (
           <div className="view-container">
             <div className="view-header">

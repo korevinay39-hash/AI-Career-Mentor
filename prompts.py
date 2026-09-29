@@ -128,28 +128,3 @@ For every project provide:
 
 Projects should be practical and useful for a college resume.
 """
-
-
-NEXT_TASK_PROMPT = """
-You are an AI Career Mentor.
-
-Based on the student's completed topics, suggest the next learning task.
-
-Student:
-Name: {name}
-Career goal: {goal}
-Skills: {skills}
-
-Completed topics:
-{completed_topics}
-
-Give:
-
-Next Task:
-Why:
-How to Practice:
-Mini Exercise:
-Expected Result:
-
-Only suggest one main next task.
-"""

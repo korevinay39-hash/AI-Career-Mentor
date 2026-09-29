@@ -22,14 +22,6 @@ def create_tables():
         )
     """)
 
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS progress (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            topic TEXT UNIQUE,
-            completed INTEGER DEFAULT 0
-        )
-    """)
-
     conn.commit()
     conn.close()
 
@@ -66,33 +58,3 @@ def get_profile():
     conn.close()
 
     return result
-
-
-def add_progress(topic):
-    conn = get_connection()
-    cursor = conn.cursor()
-
-    cursor.execute("""
-        INSERT OR REPLACE INTO progress(topic, completed)
-        VALUES (?, 1)
-    """, (topic,))
-
-    conn.commit()
-    conn.close()
-
-
-def get_completed_topics():
-    conn = get_connection()
-    cursor = conn.cursor()
-
-    cursor.execute("""
-        SELECT topic
-        FROM progress
-        WHERE completed = 1
-    """)
-
-    results = cursor.fetchall()
-
-    conn.close()
-
-    return [row[0] for row in results]

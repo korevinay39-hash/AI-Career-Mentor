@@ -1,6 +1,6 @@
 import json
 import os
-from typing import List, Optional
+from typing import Optional
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
@@ -8,13 +8,7 @@ from pydantic import BaseModel
 
 # Import existing core modules directly without modifications
 from career_agent import CareerMentorAgent
-from database import (
-    create_tables,
-    save_profile,
-    get_profile,
-    add_progress,
-    get_completed_topics
-)
+from database import create_tables, save_profile, get_profile
 
 # Initialize database tables
 create_tables()
@@ -49,9 +43,6 @@ class ProfileRequest(BaseModel):
     skills: str
     goal: str
 
-class ProgressRequest(BaseModel):
-    topic: str
-
 class ChatRequest(BaseModel):
     name: str
     education: str
@@ -64,7 +55,6 @@ class PromptRequest(BaseModel):
     education: Optional[str] = ""
     skills: str
     goal: str
-    completed_topics: Optional[List[str]] = []
 
 def safe_stream_generator(gen_callable):
     """Wraps streaming generator with error handling if Ollama/LLM fails."""
@@ -96,16 +86,6 @@ def update_profile(data: ProfileRequest):
         raise HTTPException(status_code=400, detail="All profile fields are required.")
     save_profile(data.name, data.education, data.skills, data.goal)
     return {"status": "success", "message": "Profile saved successfully"}
-
-@app.get("/api/progress")
-def fetch_progress():
-    completed = get_completed_topics()
-    return {"completed": completed}
-
-@app.post("/api/progress")
-def record_progress(data: ProgressRequest):
-    add_progress(data.topic)
-    return {"status": "success", "completed": get_completed_topics()}
 
 @app.get("/api/resources")
 def fetch_resources():
@@ -167,17 +147,5 @@ def ai_projects(data: PromptRequest):
             data.education,
             data.skills,
             data.goal
-        )
-    return StreamingResponse(safe_stream_generator(generate), media_type="text/plain")
-
-@app.post("/api/ai/next-task")
-def ai_next_task(data: PromptRequest):
-    completed = data.completed_topics or get_completed_topics()
-    def generate():
-        return agent.next_task(
-            data.name,
-            data.skills,
-            data.goal,
-            completed
         )
     return StreamingResponse(safe_stream_generator(generate), media_type="text/plain")

@@ -7,8 +7,7 @@ from prompts import (
     SKILL_ANALYSIS_PROMPT,
     ROADMAP_PROMPT,
     INTERVIEW_PROMPT,
-    PROJECT_PROMPT,
-    NEXT_TASK_PROMPT
+    PROJECT_PROMPT
 )
 
 
@@ -87,28 +86,5 @@ class CareerMentorAgent:
                 "education": education,
                 "skills": skills,
                 "goal": goal
-            }
-        )
-
-    def next_task(
-        self,
-        name,
-        skills,
-        goal,
-        completed_topics
-    ):
-
-        topics = ", ".join(completed_topics)
-
-        if not topics:
-            topics = "No topics completed yet"
-
-        return self.generate(
-            NEXT_TASK_PROMPT,
-            {
-                "name": name,
-                "skills": skills,
-                "goal": goal,
-                "completed_topics": topics
             }
         )

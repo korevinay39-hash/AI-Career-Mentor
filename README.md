@@ -16,7 +16,7 @@ When running the application, access the services at:
 
 ## Overview
 
-AI Career Mentor provides automated, personalized career recommendations based on student skills, education, and career aspirations. The platform offers skill gap analysis, personalized roadmaps, mock interview preparation, curated learning resources, and real-time progress tracking.
+AI Career Mentor provides automated, personalized career recommendations based on student skills, education, and career aspirations. The platform offers skill gap analysis, personalized roadmaps, mock interview preparation, and curated learning resources.
 
 ---
 
@@ -25,8 +25,6 @@ AI Career Mentor provides automated, personalized career recommendations based o
 * **AI Career Chat**: Real-time streaming conversation to answer questions regarding career choices, resumes, and technical paths.
 * **Skill Gap Analysis**: Compares current competencies against target job requirements to identify missing skills.
 * **Personalized Roadmap**: Generates structured, milestone-based learning plans tailored to specific roles.
-* **Curriculum Progress Tracking**: Interactive checklist of core competencies with persistent tracking in SQLite.
-* **AI Next-Task Recommendation**: Suggests the optimal next learning or project objective based on completed topics.
 * **Interview Preparation**: Generates role-tailored technical and behavioral interview questions.
 * **Project Recommendations**: Recommends practical portfolio projects suited to the student's current proficiency level.
 * **Stop Generation**: ChatGPT-style interruption capability to cancel AI generation mid-stream on demand.
@@ -40,7 +38,7 @@ The application adopts a decoupled architecture:
 1. **Frontend**: React application built with Vite, styled with a modern dark theme design system.
 2. **Backend**: FastAPI REST and streaming server providing real-time token streaming.
 3. **Core AI Logic**: LangChain pipelines connecting to local LLMs via Ollama (`qwen2.5:3b`).
-4. **Data Layer**: SQLite database (`career_mentor.db`) storing student profiles and progress.
+4. **Data Layer**: SQLite database (`career_mentor.db`) storing student profiles.
 
 ---
 
@@ -100,10 +98,6 @@ This starts both the FastAPI backend on port 8000 and the React frontend on port
   ```bash
   python main.py
   ```
-* **Streamlit Interface (Legacy)**:
-  ```bash
-  streamlit run app.py
-  ```
 
 ---
 
@@ -114,13 +108,10 @@ This starts both the FastAPI backend on port 8000 and the React frontend on port
 | GET | `/api/health` | Service health check |
 | GET | `/api/profile` | Retrieve current student profile |
 | POST | `/api/profile` | Save or update student profile |
-| GET | `/api/progress` | Fetch completed learning topics |
-| POST | `/api/progress` | Mark a topic as completed |
 | GET | `/api/resources` | Fetch categorized study resources |
 | POST | `/api/ai/chat` | Stream career mentoring responses |
 | POST | `/api/ai/skill-analysis` | Stream technical skill gap analysis |
 | POST | `/api/ai/roadmap` | Stream milestone-based career roadmap |
-| POST | `/api/ai/next-task` | Stream next recommended learning step |
 | POST | `/api/ai/interview` | Stream mock interview questions |
 | POST | `/api/ai/projects` | Stream portfolio project suggestions |
 
@@ -146,7 +137,6 @@ ai-career-mentor/
 ├── llm.py                     # Ollama model configuration
 ├── server.py                  # FastAPI application
 ├── main.py                    # Terminal CLI entry point
-├── app.py                     # Streamlit application
 ├── start_app.bat              # Windows launcher script
 ├── requirements.txt           # Python dependencies
 └── README.md                  # Project documentation
